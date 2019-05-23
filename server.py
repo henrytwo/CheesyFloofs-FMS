@@ -1,6 +1,18 @@
 import socket
 import pickle
+import threading
 import multiprocessing
+import time
+
+try:
+    from gpiozero import LED
+
+    ON_PI = True
+
+except:
+    from fakepi import LED
+
+    ON_PI = False
 
 def recv_messages(recv_queue, sock):
     while True:
@@ -20,6 +32,8 @@ def send_messages(send_queue, sock):
 
 def processor(send, recv):
 
+    rsl = LED(14)
+    enabled = False
 
     while True:
 
@@ -27,12 +41,29 @@ def processor(send, recv):
 
         # do stuff
 
-        print(msg)
+        if msg['SPC']:
+            #led.on()
 
-#L9u3EhzpU7
+            enabled = not enabled
+
+        print(enabled, msg)
+
+
+        if int(time.time()) % 2 == 0 or not enabled:
+            rsl.on()
+        else:
+            rsl.off()
+
+
+#L9u3EhzpU
+
 
 if __name__ == '__main__':
-    addr = ('127.0.0.1', 25565)
+
+    if ON_PI:
+        addr = ('192.168.0.100', 6969)
+    else:
+        addr = ('localhost', 6969)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(addr)
@@ -49,4 +80,3 @@ if __name__ == '__main__':
     command_processor.start()
 
     print('Server running on', addr)
-

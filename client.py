@@ -2,12 +2,42 @@ import socket
 import pickle
 import multiprocessing
 from pygame import *
+import sys
+import time as t
+
+
+def text(x, y, msg):
+    Text = font.render(msg, True, (255, 255, 255))
+    screen.blit(Text, (x, y))
+
+def Robot(x, y, robotState):
+
+    # top pole
+    draw.rect(screen, (0, 255, 255), (x + 90, y - 200 - int(100 * robotState['elevator'] / ELEVATOR_MAX_VALUE) * 2, 8, 140))
+    draw.rect(screen, (0, 255, 255), (x + 86, y - 50 - int(100 * robotState['elevator'] / ELEVATOR_MAX_VALUE) * 2, 8, 10))
+
+    # secondary pole
+    draw.rect(screen, (255, 255, 0), (x + 76, y - 175 - int(100 * robotState['elevator'] / ELEVATOR_MAX_VALUE), 8, 140))
+    draw.rect(screen, (255, 255, 0), (x + 68, y - 50 - int(100 * robotState['elevator'] / ELEVATOR_MAX_VALUE), 8, 10))
+
+    # main pole
+    draw.rect(screen, (255, 0, 255), (x + 60, y - 160, 8, 150))
+
+    # wheels
+    draw.circle(screen, (50, 50, 50), (x - 70, y + 5), 20)
+    draw.circle(screen, (50, 50, 50), (x + 70, y + 5), 20)
+
+    # base
+    #draw.polygon(screen, (0, 0, 255) if robotState['alliance'] == 'BLUE' else (225, 0, 0),
+    #             [(x, y - 50), (x + 120, y - 20), (x + 120, y + 15), (x, y - 15), (x - 120, y + 15), (x - 120, y - 20),
+    #              (x, y - 50)])
+
+    draw.rect(screen, (0, 0, 255) if robotState['alliance'] == 'BLUE' else (225, 0, 0), (x - 120, y - 20, 240, 20))
 
 def send_command(command_queue, sock, address):
 
     while True:
         data_out = command_queue.get()
-        print('sending')
         sock.sendto(data_out, address)
 
 
@@ -18,12 +48,30 @@ def get_data(recv_queue, sock):
         recv_queue.put(pickle.loads(msg))
 
 if __name__ == '__main__':
-    screen = display.set_mode((500, 500))
+    screen = display.set_mode((800, 450))
 
-    host = '127.0.0.1' #input('Host> ')
-    port = 25565 #int(input('Port> '))
+    init()
+
+    pytimer = time.Clock()
+
+    ELEVATOR_MAX_VALUE = 2195
+
+    KEY_MODE = {K_1 : 'teleop', K_2: 'auto'}
+
+    # text
+    font = font.Font('avenir.otf', 20)
+    texts = []
+
+    can = image.load('can.png')
+
+    can = transform.scale(can, (int(0.5 * can.get_width()), int(0.5 * can.get_height())))
+
+    host = 'localhost' if len(sys.argv) == 2 and sys.argv[1] == 'local' else '192.168.0.100'
+    port = 6969
 
     address = (host, port)
+
+    print('Connecting to', address)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -41,6 +89,10 @@ if __name__ == '__main__':
 
     keys = {}
 
+    enabled = False
+    mode = 'disabled'
+    start_time = 0
+
     while running:
         for e in event.get():
             if e.type == QUIT:
@@ -48,8 +100,26 @@ if __name__ == '__main__':
                 send_process.terminate()
                 recv_process.terminate()
 
-        screen.fill((255, 255, 255))
-        draw.circle(screen, (255, 0, 0), pos, 2)
+            if e.type == KEYDOWN:
+                if e.key in KEY_MODE:
+
+                    if not enabled:
+
+                        print(KEY_MODE[e.key] + ' enabled')
+
+                        enabled = True
+                        mode = KEY_MODE[e.key]
+                        start_time = t.time()
+
+                    else:
+                        enabled = False
+                        mode = 'disabled'
+                        print('Disabled')
+
+                elif e.key == K_ESCAPE:
+                    enabled = False
+                    mode = 'disabled'
+                    print('Disabled')
 
         # W - 119
         # A - 97
@@ -64,6 +134,8 @@ if __name__ == '__main__':
         keys['S'] = key.get_pressed()[115]
         keys['D'] = key.get_pressed()[100]
         keys['SPC'] = key.get_pressed()[32]
+        keys['enabled'] = enabled
+        keys['mode'] = mode
 
         commands = pickle.dumps(keys)
 
@@ -81,6 +153,53 @@ if __name__ == '__main__':
         except:
             pass
 
-        print(pos, keys)
+        # Visual stuff
+
+        robotState = {
+            'elevator': 0,
+            'backClimb': 0,
+            'frontClimb': 0,
+            'hook': 0,
+            'tilt': 0,
+            'intake': 0,
+            'ledR': 0,
+            'ledG': 0,
+            'ledB': 1,
+            'incognito': 0,
+            'alliance': 'RED'
+        }
+
+        # screen
+        screen.fill((0, 0, 0))
+        W = screen.get_width();
+        H = screen.get_height();
+
+        screen.blit(can, (W // 2 + 50, 50))
+
+        # draw robot
+        Robot(W // 2 - 150, 420, robotState)
+
+        # text
+        texts = ["Elevator Position: %i / %i" % (robotState['elevator'], ELEVATOR_MAX_VALUE),
+                 "Enabled: %s" % mode,
+                 "Network: %s" % str(address),
+                 "Match Time: %f" % ((t.time() - start_time) if enabled else 0.0)]
+
+        for i in range(len(texts)):
+            text(20, 55 + i * 30, texts[i])
+
+        # status bar
+        draw.rect(screen, (
+        255 if robotState['ledR'] else 0, 255 if robotState['ledG'] else 0, 255 if robotState['ledB'] else 0),
+                  (0, 0, W, 40))
 
         display.flip()
+
+        pytimer.tick(60)
+
+        display.flip()
+
+
+
+
+
