@@ -13,7 +13,7 @@ def text(x, y, msg):
 def Robot(x, y, robotState):
 
     # top pole
-    draw.rect(screen, (0, 255, 255), (x + 90, y - 200 - int(100 * robotState['elevator'] / ELEVATOR_MAX_VALUE) * 2, 8, 140))
+    draw.rect(screen, (0, 255, 255), (x + 90, y - 170 - int(100 * robotState['elevator'] / ELEVATOR_MAX_VALUE) * 2, 8, 140))
     draw.rect(screen, (0, 255, 255), (x + 86, y - 50 - int(100 * robotState['elevator'] / ELEVATOR_MAX_VALUE) * 2, 8, 10))
 
     # secondary pole
@@ -93,6 +93,8 @@ if __name__ == '__main__':
     mode = 'disabled'
     start_time = 0
 
+    last_communication = float('inf')
+
     while running:
         for e in event.get():
             if e.type == QUIT:
@@ -127,6 +129,8 @@ if __name__ == '__main__':
         # D - 100
         # SPC - 32
 
+        match_time = t.time() - start_time
+
         keys['R'] = key.get_pressed()[114]
         keys['F'] = key.get_pressed()[102]
         keys['W'] = key.get_pressed()[119]
@@ -136,6 +140,7 @@ if __name__ == '__main__':
         keys['SPC'] = key.get_pressed()[32]
         keys['enabled'] = enabled
         keys['mode'] = mode
+        keys['drive_station_time'] = t.time()
 
         commands = pickle.dumps(keys)
 
@@ -149,25 +154,28 @@ if __name__ == '__main__':
             in_data = recv_queue.get_nowait()
 
             if in_data:
-                pos = in_data
+                robotState = in_data
         except:
-            pass
 
-        # Visual stuff
+            robotState = {
+                'elevator': 1000,
+                'intake': 0,
+                'ledR': 0,
+                'ledG': 0,
+                'ledB': 1,
+                'alliance': 'RED'
+            }
 
-        robotState = {
-            'elevator': 0,
-            'backClimb': 0,
-            'frontClimb': 0,
-            'hook': 0,
-            'tilt': 0,
-            'intake': 0,
-            'ledR': 0,
-            'ledG': 0,
-            'ledB': 1,
-            'incognito': 0,
-            'alliance': 'RED'
-        }
+        if 'robot_time' in robotState:
+            last_communication = t.time() - robotState['robot_time'] + robotState['robot_time_offset']
+
+        if last_communication > 2 and match_time > 2:
+            enabled = False
+            mode = 'timeout disabled'
+
+            print('Disabled due to communication timeout')
+
+
 
         # screen
         screen.fill((0, 0, 0))
@@ -183,7 +191,9 @@ if __name__ == '__main__':
         texts = ["Elevator Position: %i / %i" % (robotState['elevator'], ELEVATOR_MAX_VALUE),
                  "Enabled: %s" % mode,
                  "Network: %s" % str(address),
-                 "Match Time: %f" % ((t.time() - start_time) if enabled else 0.0)]
+                 "Match Time: %f" % (match_time if enabled else 0.0),
+                 "Last communication: %f" % last_communication,
+                 "Connection Status: %s" % ('Connected' if last_communication < 1 else 'Disconnected')]
 
         for i in range(len(texts)):
             text(20, 55 + i * 30, texts[i])

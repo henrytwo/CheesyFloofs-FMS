@@ -3,6 +3,7 @@ import pickle
 import threading
 import multiprocessing
 import time
+import led_controller
 
 try:
     from gpiozero import LED
@@ -30,9 +31,20 @@ def send_messages(send_queue, sock):
         except:
             pass
 
+def led_processor(q):
+    while True:
+        current_command = 'fade'
+
+        try:
+            current_command = q.get_nowait()
+        except:
+            pass
+
+        led_controller.cycle(current_command)
+
+
 def processor(send, recv):
 
-    rsl = LED(14)
     enabled = False
 
     while True:
@@ -49,10 +61,6 @@ def processor(send, recv):
         print(enabled, msg)
 
 
-        if int(time.time()) % 2 == 0 or not enabled:
-            rsl.on()
-        else:
-            rsl.off()
 
 
 #L9u3EhzpU
@@ -70,6 +78,7 @@ if __name__ == '__main__':
 
     send_queue = multiprocessing.Queue()
     recv_queue = multiprocessing.Queue()
+    led_queue = multiprocessing.Queue()
 
     send_procress = multiprocessing.Process(target=send_messages, args=(send_queue, sock))
     recv_procress = multiprocessing.Process(target=recv_messages, args=(recv_queue, sock))
