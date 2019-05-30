@@ -4,6 +4,37 @@ import threading
 import multiprocessing
 import time
 import led_controller
+import motor_controller
+
+# Main Pi
+
+# 2 - PWM
+# 3 - PWM
+# 4 - Elevator ENable
+# 17 - Elevator down
+# 27 - Left Enable
+# 22 - Right Enable
+# 10
+# 9
+# 11
+# 5
+# 6
+# 13
+# 19
+# 26
+
+# 14
+# 15
+# 18 - LED
+# 23
+# 24
+# 25
+# 8
+# 7
+# 12
+# 16
+# 20
+# 21
 
 try:
     from gpiozero import LED
@@ -43,7 +74,7 @@ def led_processor(q):
         led_controller.cycle(current_command)
 
 
-def processor(send, recv):
+def processor(send, recv, led_queue):
 
     enabled = False
 
@@ -53,15 +84,56 @@ def processor(send, recv):
 
         # do stuff
 
-        if msg['SPC']:
+        if msg['enabled']:
+
+            led_queue.put('rainbow')
+
             #led.on()
 
             enabled = not enabled
+        else:
+            led_queue.put('fade')
+
+        left_power = 0
+        right_power = 0
+
+        turning = False
+
+        if msg['W']:
+            left_power += 255
+            right_power += 255
+
+        if msg['S']:
+            left_power -= 255
+            right_power -= 255
+
+        if msg['A']:
+            left_power -= 255
+            right_power += 255
+
+            turning = True
+
+        if msg['D']:
+            left_power += 255
+            right_power -= 255
+
+            turning = True
+
+        if turning:
+            left_power /= 2
+            right_power /= 2
+
+        motor_controller.left_control(left_power)
+        motor_controller.right_control(right_power)
+
+        if msg['R']:
+            motor_controller.elevator_up()
+        elif msg['F']:
+            motor_controller.elevator_down()
+        else:
+            motor_controller.elevator_stop()
 
         print(enabled, msg)
-
-
-
 
 #L9u3EhzpU
 
@@ -82,7 +154,7 @@ if __name__ == '__main__':
 
     send_procress = multiprocessing.Process(target=send_messages, args=(send_queue, sock))
     recv_procress = multiprocessing.Process(target=recv_messages, args=(recv_queue, sock))
-    command_processor = multiprocessing.Process(target=processor, args=(send_queue, recv_queue))
+    command_processor = multiprocessing.Process(target=processor, args=(send_queue, recv_queue, led_queue))
 
     send_procress.start()
     recv_procress.start()
