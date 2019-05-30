@@ -94,7 +94,7 @@ def processor(send, recv, led_queue):
         except:
             msg = {}
 
-        if time.time() - last_comm > 2:
+        if time.time() - last_comm > 2 and enabled:
             enabled = False
             print('WATCHDOG STOPPED')
 
