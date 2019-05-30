@@ -56,7 +56,7 @@ right_enable = LED(RIGHT_ENABLE)
 kit.servo[2].set_pulse_width_range(1500, 2500)
 
 def continuous_ccw(channel):
-    pca.channels[channel].duty_cycle = 5000
+    pca.channels[channel].duty_cycle = 2553
 
 def continuous_cw(channel):
     pca.channels[channel].duty_cycle = 50

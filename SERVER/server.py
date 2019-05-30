@@ -14,7 +14,7 @@ import motor_controller
 # 17 - Elevator down
 # 27 - Left Enable
 # 22 - Right Enable
-# 10
+# 10 - PWM OE
 # 9
 # 11
 # 5
@@ -35,6 +35,8 @@ import motor_controller
 # 16
 # 20
 # 21
+
+AUX_POWER = 10
 
 try:
     from gpiozero import LED
@@ -81,9 +83,10 @@ def processor(send, recv, led_queue):
 
     enabled = False
 
-    last_comm = -1
+    aux_power_io = LED(AUX_POWER)
+    aux_power_io.off()
 
-    disabled_led = False
+    last_comm = -1
 
     while True:
 
@@ -104,72 +107,105 @@ def processor(send, recv, led_queue):
 
         # do stuff
 
-        if commcheck(msg, 'enabled'):
+        if commcheck(msg, 'enabled') and not enabled:
 
             led_queue.put('rainbow')
 
-            #led.on()
-
-            enabled = not enabled
-
-            disabled_led = False
+            enabled = True
 
         # only queue up instruction once to avoid flooding
-        elif not disabled_led:
-            disabled_led = True
+        elif enabled:
             led_queue.put('fade')
 
-        left_power = 0
-        right_power = 0
+            enabled = False
 
-        turning = False
+        if enabled:
+            aux_power_io.on()
 
-        if commcheck(msg, 'W'):
-            left_power += 255
-            right_power += 255
+            # Controls needed
+            # WASD - Drive, duh
+            # UJ - Elevator
+            # IK - Intake
+            # OL - Back Climb
+            # PU PD - Double Climb release
 
-        if commcheck(msg, 'S'):
-            left_power -= 255
-            right_power -= 255
+            # Primary Drive Train
+            left_power = 0
+            right_power = 0
 
-        if commcheck(msg, 'A'):
-            left_power -= 255
-            right_power += 255
+            turning = False
 
-            turning = True
 
-        if commcheck(msg, 'D'):
-            left_power += 255
-            right_power -= 255
+            if commcheck(msg, 'W'):
+                left_power += 255
+                right_power += 255
 
-            turning = True
+            if commcheck(msg, 'S'):
+                left_power -= 255
+                right_power -= 255
 
-        try:
-            if commcheck(msg, 'R'):
+            if commcheck(msg, 'A'):
+                left_power -= 255
+                right_power += 255
+
+                turning = True
+
+            if commcheck(msg, 'D'):
+                left_power += 255
+                right_power -= 255
+
+                turning = True
+
+            try:
+                if commcheck(msg, 'R'):
+                    motor_controller.continuous_cw(motor_controller.INTAKE)
+                elif commcheck(msg, 'F'):
+                    motor_controller.continuous_ccw(motor_controller.INTAKE)
+                else:
+                    motor_controller.continuous_stop(motor_controller.INTAKE)
+            except:
+                pass
+
+            if turning:
+                left_power /= 2
+                right_power /= 2
+
+            motor_controller.left_control(left_power)
+            motor_controller.right_control(right_power)
+
+            # Elevator
+            if commcheck(msg, 'U'):
+                motor_controller.elevator_up()
+            elif commcheck(msg, 'J'):
+                motor_controller.elevator_down()
+            else:
+                motor_controller.elevator_stop()
+
+            # Intake
+            if commcheck(msg, 'K'): #succ
                 motor_controller.continuous_cw(motor_controller.INTAKE)
-            elif commcheck(msg, 'F'):
+            elif commcheck(msg, 'I'): #unsucc
                 motor_controller.continuous_ccw(motor_controller.INTAKE)
             else:
                 motor_controller.continuous_stop(motor_controller.INTAKE)
-        except:
-            pass
 
-        if turning:
-            left_power /= 2
-            right_power /= 2
+            # Back Climb
+            if commcheck(msg, 'O'): #leg up
+                motor_controller.continuous_cw(motor_controller.BACK_CLIMB)
+            elif commcheck(msg, 'L'): #leg down
+                motor_controller.continuous_ccw(motor_controller.BACK_CLIMB)
+            else:
+                motor_controller.continuous_stop(motor_controller.BACK_CLIMB)
 
-        #motor_controller.left_control(left_power)
-        #motor_controller.right_control(right_power)
 
-        """
-        if commcheck(msg, 'R'):
-            motor_controller.elevator_up()
-        elif commcheck(msg, 'F'):
-            motor_controller.elevator_down()
+
         else:
-            motor_controller.elevator_stop()
-        """
+            aux_power_io.off()
+
         print(enabled, msg)
+
+        if 'drive_station_time' in msg:
+            send.put((time.time(), time.time() - msg['drive_station_time']))
 
 #L9u3EhzpU
 

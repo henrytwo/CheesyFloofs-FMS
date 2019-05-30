@@ -8,7 +8,7 @@ import math
 pixel_pin = board.D18
 
 # The number of NeoPixels
-num_pixels = 30
+num_pixels = 10
 
 # The order of the pixel colors - RGB or GRB. Some NeoPixels have red and green reversed!
 # For RGBW NeoPixels, simply change the ORDER to RGBW or GRBW.
@@ -17,6 +17,10 @@ ORDER = neopixel.GRB
 pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness=1, auto_write=False,
                            pixel_order=ORDER)
 
+# Makes both sides the same
+def dual(index, value):
+    pixels[index] = value
+    pixels[num_pixels * 2 - value - 1] = value
 
 
 def wheel(pos):
@@ -45,9 +49,16 @@ def rainbow_cycle(wait=0.001):
     for j in range(255):
         for i in range(num_pixels):
             pixel_index = (i * 256 // num_pixels) + j
-            pixels[i] = wheel(pixel_index & 255)
+            #pixels[i] = wheel(pixel_index & 255)
+            dual(i, wheel(pixel_index & 255))
         pixels.show()
         time.sleep(wait)
+
+def chase(color=(0, 0, 255), direction=1):
+    if direction > 0:
+        dual(int(time.time()) % num_pixels, color)
+    else:
+        dual(num_pixels - int(time.time()) % num_pixels, color)
 
 def fade():
     pixels.fill((0, 0, int(128 * math.sin(time.time() * 3) + 128)))
@@ -57,7 +68,8 @@ def watchdog():
 
 command_list = {'fade': fade,
                 'watchdog': watchdog,
-                'rainbow': rainbow_cycle}
+                'rainbow': rainbow_cycle,
+                'chase': chase}
 
 def cycle(command):
     command_list[command]()
