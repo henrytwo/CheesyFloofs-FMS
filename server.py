@@ -73,25 +73,49 @@ def led_processor(q):
 
         led_controller.cycle(current_command)
 
+def commcheck(base, index):
+    return index in base and base[index]
 
 def processor(send, recv, led_queue):
 
     enabled = False
 
+    last_comm = -1
+
+    disabled_led = False
+
     while True:
 
-        msg, addr = recv.get()
+        try:
+            msg, addr = recv.get_nowait()
+
+            last_comm = time.time()
+
+        except:
+            msg = {}
+
+        if time.time() - last_comm > 2:
+            enabled = False
+            print('WATCHDOG STOPPED')
+
+
+            led_queue.put('watchdog')
 
         # do stuff
 
-        if msg['enabled']:
+        if commcheck(msg, 'enabled'):
 
             led_queue.put('rainbow')
 
             #led.on()
 
             enabled = not enabled
-        else:
+
+            disabled_led = False
+
+        # only queue up instruction once to avoid flooding
+        elif not disabled_led:
+            disabled_led = True
             led_queue.put('fade')
 
         left_power = 0
@@ -99,21 +123,21 @@ def processor(send, recv, led_queue):
 
         turning = False
 
-        if msg['W']:
+        if commcheck(msg, 'W'):
             left_power += 255
             right_power += 255
 
-        if msg['S']:
+        if commcheck(msg, 'S'):
             left_power -= 255
             right_power -= 255
 
-        if msg['A']:
+        if commcheck(msg, 'A'):
             left_power -= 255
             right_power += 255
 
             turning = True
 
-        if msg['D']:
+        if commcheck(msg, 'D'):
             left_power += 255
             right_power -= 255
 
@@ -126,9 +150,9 @@ def processor(send, recv, led_queue):
         motor_controller.left_control(left_power)
         motor_controller.right_control(right_power)
 
-        if msg['R']:
+        if commcheck(msg, 'R'):
             motor_controller.elevator_up()
-        elif msg['F']:
+        elif commcheck(msg, 'F'):
             motor_controller.elevator_down()
         else:
             motor_controller.elevator_stop()

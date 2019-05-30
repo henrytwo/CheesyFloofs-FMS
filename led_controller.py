@@ -51,7 +51,11 @@ def rainbow_cycle(wait=0.001):
 def fade():
     pixels.fill((0, 0, int(128 * math.sin(time.time() * 3) + 128)))
 
+def watchdog():
+    pixels.fill((255 if int(time.time()) % 2 == 0 else 0, 0, 0))
+
 command_list = {'fade': fade,
+                'watchdog': watchdog,
                 'rainbow': rainbow_cycle}
 
 def cycle(command):
