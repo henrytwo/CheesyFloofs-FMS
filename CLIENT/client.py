@@ -188,7 +188,7 @@ if __name__ == '__main__':
         if 'heartbeat' in robotState:
             last_communication = t.time()
 
-        if last_communication - t.time() > 2 and match_time > 2:
+        if last_communication - t.time() > 2 and match_time > 2 and enabled:
             enabled = False
             mode = 'timeout disabled'
 
