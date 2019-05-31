@@ -135,68 +135,69 @@ def processor(send, recv, led_queue):
 
             turning = False
 
-
-            if commcheck(msg, 'W'):
-                left_power += 255
-                right_power += 255
-
-            if commcheck(msg, 'S'):
-                left_power -= 255
-                right_power -= 255
-
-            if commcheck(msg, 'A'):
-                left_power -= 255
-                right_power += 255
-
-                turning = True
-
-            if commcheck(msg, 'D'):
-                left_power += 255
-                right_power -= 255
-
-                turning = True
-
             try:
+
+
+                if commcheck(msg, 'W'):
+                    left_power += 255
+                    right_power += 255
+
+                if commcheck(msg, 'S'):
+                    left_power -= 255
+                    right_power -= 255
+
+                if commcheck(msg, 'A'):
+                    left_power -= 255
+                    right_power += 255
+
+                    turning = True
+
+                if commcheck(msg, 'D'):
+                    left_power += 255
+                    right_power -= 255
+
+                    turning = True
+
                 if commcheck(msg, 'R'):
                     motor_controller.continuous_cw(motor_controller.INTAKE)
                 elif commcheck(msg, 'F'):
                     motor_controller.continuous_ccw(motor_controller.INTAKE)
                 else:
                     motor_controller.continuous_stop(motor_controller.INTAKE)
+
+                if turning:
+                    left_power /= 2
+                    right_power /= 2
+
+                motor_controller.left_control(left_power)
+                motor_controller.right_control(right_power)
+
+                # Elevator
+                if commcheck(msg, 'U'):
+                    motor_controller.elevator_up()
+                elif commcheck(msg, 'J'):
+                    motor_controller.elevator_down()
+                else:
+                    motor_controller.elevator_stop()
+
+                # Intake
+                if commcheck(msg, 'K'): #succ
+                    motor_controller.continuous_cw(motor_controller.INTAKE)
+                elif commcheck(msg, 'I'): #unsucc
+                    motor_controller.continuous_ccw(motor_controller.INTAKE)
+                else:
+                    motor_controller.continuous_stop(motor_controller.INTAKE)
+
+                # Back Climb
+                if commcheck(msg, 'O'): #leg up
+                    motor_controller.continuous_cw(motor_controller.BACK_CLIMB)
+                elif commcheck(msg, 'L'): #leg down
+                    motor_controller.continuous_ccw(motor_controller.BACK_CLIMB)
+                else:
+                    motor_controller.continuous_stop(motor_controller.BACK_CLIMB)
             except:
-                pass
-
-            if turning:
-                left_power /= 2
-                right_power /= 2
-
-            motor_controller.left_control(left_power)
-            motor_controller.right_control(right_power)
-
-            # Elevator
-            if commcheck(msg, 'U'):
-                motor_controller.elevator_up()
-            elif commcheck(msg, 'J'):
-                motor_controller.elevator_down()
-            else:
-                motor_controller.elevator_stop()
-
-            # Intake
-            if commcheck(msg, 'K'): #succ
-                motor_controller.continuous_cw(motor_controller.INTAKE)
-            elif commcheck(msg, 'I'): #unsucc
-                motor_controller.continuous_ccw(motor_controller.INTAKE)
-            else:
-                motor_controller.continuous_stop(motor_controller.INTAKE)
-
-            # Back Climb
-            if commcheck(msg, 'O'): #leg up
-                motor_controller.continuous_cw(motor_controller.BACK_CLIMB)
-            elif commcheck(msg, 'L'): #leg down
-                motor_controller.continuous_ccw(motor_controller.BACK_CLIMB)
-            else:
-                motor_controller.continuous_stop(motor_controller.BACK_CLIMB)
-
+                print('Error occured')
+                led_queue.put('error')
 
 
         else:

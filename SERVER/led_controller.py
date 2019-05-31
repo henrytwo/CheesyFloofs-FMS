@@ -66,10 +66,14 @@ def fade():
 def watchdog():
     pixels.fill((255 if int(time.time()) % 2 == 0 else 0, 0, 0))
 
+def error():
+    pixels.fill((255, 255, 0) if int(time.time()) % 2 == 0 else (0, 0, 0))
+
 command_list = {'fade': fade,
                 'watchdog': watchdog,
                 'rainbow': rainbow_cycle,
-                'chase': chase}
+                'chase': chase,
+                'error': error}
 
 def cycle(command):
     command_list[command]()
