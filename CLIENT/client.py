@@ -45,7 +45,8 @@ def get_data(recv_queue, sock):
 
     while True:
         msg = sock.recvfrom(1024)
-        recv_queue.put(pickle.loads(msg))
+
+        recv_queue.put(pickle.loads(msg[0]))
 
 if __name__ == '__main__':
     screen = display.set_mode((800, 480))
@@ -188,7 +189,7 @@ if __name__ == '__main__':
         if 'heartbeat' in robotState:
             last_communication = t.time()
 
-        if last_communication - t.time() > 2 and match_time > 2 and enabled:
+        if t.time() - last_communication > 0.5 and match_time > 2 and enabled:
             enabled = False
             mode = 'timeout disabled'
 
@@ -215,7 +216,7 @@ if __name__ == '__main__':
                  "Mode: %s" % mode,
                  "Network: %s" % str(address),
                  "Match Time: %f" % (match_time if enabled else 0.0),
-                 "Last communication: %fs ago" % last_communication,
+                 "Last communication: %fs ago" % (t.time() - last_communication),
                  "Connection Status: %s" % ('Connected' if last_communication < 1 else 'Disconnected')]
 
         for i in range(len(texts)):

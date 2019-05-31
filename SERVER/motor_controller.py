@@ -71,9 +71,13 @@ def elevator_up():
     elevator_down_io.on()
     elevator_enable_io.off()
 
+    print('UP')
+
 def elevator_down():
     elevator_down_io.off()
     elevator_enable_io.off()
+
+    print('DOWN')
 
 def elevator_stop():
     elevator_enable_io.on()

@@ -5,6 +5,7 @@ import multiprocessing
 import time
 import led_controller
 import motor_controller
+import traceback
 
 # Main Pi
 
@@ -65,9 +66,9 @@ def send_messages(send_queue, sock):
             pass
 
 def led_processor(q):
-    while True:
-        current_command = 'fade'
+    current_command = 'fade'
 
+    while True:
 
         try:
             current_command = q.get_nowait()
@@ -98,7 +99,7 @@ def processor(send, recv, led_queue):
         except:
             msg = {}
 
-        if time.time() - last_comm > 2 and enabled:
+        if time.time() - last_comm > 0.5 and enabled:
             enabled = False
             print('WATCHDOG STOPPED')
 
@@ -109,15 +110,19 @@ def processor(send, recv, led_queue):
 
         if commcheck(msg, 'enabled') and not enabled:
 
+            print('Robot enabled!')
+
             led_queue.put('rainbow')
 
             enabled = True
 
         # only queue up instruction once to avoid flooding
-        elif enabled:
+        elif not commcheck(msg, 'enabled') and enabled:
             led_queue.put('fade')
 
             enabled = False
+
+            print('Robot disabled by DS')
 
         if enabled:
             aux_power_io.on()
@@ -159,9 +164,9 @@ def processor(send, recv, led_queue):
                     turning = True
 
                 if commcheck(msg, 'R'):
-                    motor_controller.continuous_cw(motor_controller.INTAKE)
-                elif commcheck(msg, 'F'):
                     motor_controller.continuous_ccw(motor_controller.INTAKE)
+                elif commcheck(msg, 'F'):
+                    motor_controller.continuous_cw(motor_controller.INTAKE)
                 else:
                     motor_controller.continuous_stop(motor_controller.INTAKE)
 
@@ -183,8 +188,10 @@ def processor(send, recv, led_queue):
                 # Intake
                 if commcheck(msg, 'K'): #succ
                     motor_controller.continuous_cw(motor_controller.INTAKE)
+                    print('succc')
                 elif commcheck(msg, 'I'): #unsucc
                     motor_controller.continuous_ccw(motor_controller.INTAKE)
+                    print('unsucc')
                 else:
                     motor_controller.continuous_stop(motor_controller.INTAKE)
 
@@ -195,15 +202,18 @@ def processor(send, recv, led_queue):
                     motor_controller.continuous_ccw(motor_controller.BACK_CLIMB)
                 else:
                     motor_controller.continuous_stop(motor_controller.BACK_CLIMB)
+
             except:
                 print('Error occured')
                 led_queue.put('error')
+
+                traceback.print_exc()
 
 
         else:
             aux_power_io.off()
 
-        print(enabled, msg)
+        #print(enabled, msg)
 
         if msg:
             send.put(({'heartbeat':'I am alive!', 'elevator': 0}, addr))

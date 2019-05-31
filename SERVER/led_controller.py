@@ -14,13 +14,14 @@ num_pixels = 10
 # For RGBW NeoPixels, simply change the ORDER to RGBW or GRBW.
 ORDER = neopixel.GRB
 
-pixels = neopixel.NeoPixel(pixel_pin, num_pixels, brightness=1, auto_write=False,
+pixels = neopixel.NeoPixel(pixel_pin, num_pixels * 2, brightness=1, auto_write=False,
                            pixel_order=ORDER)
 
 # Makes both sides the same
 def dual(index, value):
+
     pixels[index] = value
-    pixels[num_pixels * 2 - value - 1] = value
+    pixels[num_pixels * 2 - 1 - index] = value
 
 
 def wheel(pos):
@@ -76,5 +77,8 @@ command_list = {'fade': fade,
                 'error': error}
 
 def cycle(command):
+
+    #print(command)
+
     command_list[command]()
     pixels.show()
