@@ -235,7 +235,8 @@ def processor(send, recv, led_queue, watchdog_queue):
 
 
         else:
-            pwm_oe.off()
+            pwm_oe.on()
+            motor_controller.elevator_enable_io.on()
 
         #print(enabled, msg)
 
