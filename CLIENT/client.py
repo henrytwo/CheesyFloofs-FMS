@@ -217,7 +217,7 @@ if __name__ == '__main__':
                  "Network: %s" % str(address),
                  "Match Time: %f" % (match_time if enabled else 0.0),
                  "Last communication: %fs ago" % (t.time() - last_communication),
-                 "Connection Status: %s" % ('Connected' if last_communication < 1 else 'Disconnected')]
+                 "Connection Status: %s" % ('Connected' if (t.time() - last_communication) < 1 else 'Disconnected')]
 
         for i in range(len(texts)):
             text(20, 30 + i * 30, texts[i])

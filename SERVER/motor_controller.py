@@ -31,26 +31,28 @@ INTAKE = 0
 BACK_CLIMB = 1
 DOUBLE_CLIMB = 2
 
-LEFT_FWD = 3
-LEFT_REV = 4
+LEFT = 3
+RIGHT = 4
 
-RIGHT_FWD = 5
-RIGHT_REV = 6
 
 ELEVATOR_ENABLE = 4
 ELEVATOR_DOWN = 17
 
-LEFT_ENABLE = 27
-RIGHT_ENABLE = 22
+LEFT_FWD_ENABLE = 27
+LEFT_REV_ENABLE = 22
+RIGHT_FWD_ENABLE = 9
+RIGHT_REV_ENABLE = 11
+
+left_fwd_io = LED(LEFT_FWD_ENABLE)
+left_rev_io = LED(LEFT_REV_ENABLE)
+right_fwd_io = LED(RIGHT_FWD_ENABLE)
+right_rev_io = LED(RIGHT_REV_ENABLE)
 
 elevator_enable_io = LED(ELEVATOR_ENABLE)
 elevator_enable_io.on()
 
 elevator_down_io = LED(ELEVATOR_DOWN)
 elevator_down_io.on()
-
-left_enable = LED(LEFT_ENABLE)
-right_enable = LED(RIGHT_ENABLE)
 
 # Big boi servo
 kit.servo[2].set_pulse_width_range(1500, 2500)
@@ -68,13 +70,13 @@ def go_to_angle(channel, angle):
     kit.servo[channel].angle = angle
 
 def elevator_up():
-    elevator_down_io.on()
+    elevator_down_io.off()
     elevator_enable_io.off()
 
     print('UP')
 
 def elevator_down():
-    elevator_down_io.off()
+    elevator_down_io.on()
     elevator_enable_io.off()
 
     print('DOWN')
@@ -83,35 +85,43 @@ def elevator_stop():
     elevator_enable_io.on()
 
 def left_control(speed):
+    pca.channels[LEFT].duty_cycle = int((abs(speed) / 255) * 65535)
+
+    #print('LEFT', speed, int((abs(speed) / 255) * 65535))
+
     if speed > 0:
-        pca.channels[LEFT_FWD].duty_cycle = int((speed / 255) * 65535)
+        left_fwd_io.on()
+        left_rev_io.off()
+
+
+    elif speed < 0:
+        left_fwd_io.off()
+        left_rev_io.on()
 
     else:
-        pca.channels[LEFT_FWD].duty_cycle = 0
+        left_fwd_io.off()
+        left_rev_io.off()
 
-    if speed < 0:
-        pca.channels[LEFT_REV].duty_cycle = int((speed / 255) * 65535)
-    else:
-        pca.channels[LEFT_REV].duty_cycle = 0
+        pca.channels[LEFT].duty_cycle = 0
 
-    if speed != 0:
-        left_enable.on()
-    else:
-        left_enable.off()
         
 def right_control(speed):
+    pca.channels[RIGHT].duty_cycle = int((abs(speed) / 255) * 65535)
+
+
+    #print('RIGHT', speed, int((abs(speed) / 255) * 65535))
+
     if speed > 0:
-        pca.channels[RIGHT_FWD].duty_cycle = int((speed / 255) * 65535)
+        right_fwd_io.on()
+        right_rev_io.off()
+
+
+    elif speed < 0:
+        right_fwd_io.off()
+        right_rev_io.on()
 
     else:
-        pca.channels[RIGHT_FWD].duty_cycle = 0
+        right_fwd_io.off()
+        right_rev_io.off()
 
-    if speed < 0:
-        pca.channels[RIGHT_REV].duty_cycle = int((speed / 255) * 65535)
-    else:
-        pca.channels[RIGHT_REV].duty_cycle = 0
-
-    if speed != 0:
-        right_enable.on()
-    else:
-        right_enable.off()
+        pca.channels[RIGHT].duty_cycle = 0

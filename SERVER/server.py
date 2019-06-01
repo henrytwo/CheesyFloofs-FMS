@@ -13,11 +13,11 @@ import traceback
 # 3 - PWM
 # 4 - Elevator ENable
 # 17 - Elevator down
-# 27 - Left Enable
-# 22 - Right Enable
+# 27 - Left FWD Enable
+# 22 - Left BW Enable
 # 10 - PWM OE
-# 9
-# 11
+# 9 - Right FWD Enable
+# 11 - Right BW Enable
 # 5
 # 6
 # 13
@@ -37,7 +37,7 @@ import traceback
 # 20
 # 21
 
-AUX_POWER = 10
+PWM_OE = 10
 
 try:
     from gpiozero import LED
@@ -80,12 +80,28 @@ def led_processor(q):
 def commcheck(base, index):
     return index in base and base[index]
 
-def processor(send, recv, led_queue):
+def watchdog(watchqueue, recv):
+    last_time = -1
+
+    while True:
+
+        try:
+            last_time = watchqueue.get_nowait()
+        except:
+            pass
+
+        if time.time() - last_time > 0.5:
+            recv.put(('WATCHDOG', -1))
+
+
+        pass
+
+def processor(send, recv, led_queue, watchdog_queue):
 
     enabled = False
 
-    aux_power_io = LED(AUX_POWER)
-    aux_power_io.off()
+    pwm_oe = LED(PWM_OE)
+    pwm_oe.on()
 
     last_comm = -1
 
@@ -94,7 +110,13 @@ def processor(send, recv, led_queue):
         try:
             msg, addr = recv.get()
 
-            last_comm = time.time()
+            if msg != 'WATCHDOG':
+
+                last_comm = time.time()
+                watchdog_queue.put(last_comm)
+
+            else:
+                last_comm = -1
 
         except:
             msg = {}
@@ -125,7 +147,7 @@ def processor(send, recv, led_queue):
             print('Robot disabled by DS')
 
         if enabled:
-            aux_power_io.on()
+            pwm_oe.off()
 
             # Controls needed
             # WASD - Drive, duh
@@ -171,8 +193,10 @@ def processor(send, recv, led_queue):
                     motor_controller.continuous_stop(motor_controller.INTAKE)
 
                 if turning:
-                    left_power /= 2
-                    right_power /= 2
+                    if left_power > 255:
+                        left_power /= 2
+                    if right_power > 255:
+                        right_power /= 2
 
                 motor_controller.left_control(left_power)
                 motor_controller.right_control(right_power)
@@ -211,7 +235,7 @@ def processor(send, recv, led_queue):
 
 
         else:
-            aux_power_io.off()
+            pwm_oe.off()
 
         #print(enabled, msg)
 
@@ -234,10 +258,12 @@ if __name__ == '__main__':
     send_queue = multiprocessing.Queue()
     recv_queue = multiprocessing.Queue()
     led_queue = multiprocessing.Queue()
+    watchdog_queue = multiprocessing.Queue()
 
     send_procress = multiprocessing.Process(target=send_messages, args=(send_queue, sock))
     recv_procress = multiprocessing.Process(target=recv_messages, args=(recv_queue, sock))
-    command_processor = multiprocessing.Process(target=processor, args=(send_queue, recv_queue, led_queue))
+    command_processor = multiprocessing.Process(target=processor, args=(send_queue, recv_queue, led_queue, watchdog_queue))
+    watchdog_processor = multiprocessing.Process(target=watchdog, args=(watchdog_queue, recv_queue))
 
     led_process = multiprocessing.Process(target=led_processor, args=(led_queue,))
 
@@ -245,5 +271,6 @@ if __name__ == '__main__':
     recv_procress.start()
     command_processor.start()
     led_process.start()
+    watchdog_processor.start()
 
     print('Server running on', addr)
