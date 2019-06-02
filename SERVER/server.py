@@ -104,6 +104,10 @@ def processor(send, recv, led_queue, watchdog_queue):
     pwm_oe.on()
 
     last_comm = -1
+    last_ds_time = -1
+
+    elevator_direction = 0
+    new_elevator_direction = 0
 
     while True:
 
@@ -112,8 +116,16 @@ def processor(send, recv, led_queue, watchdog_queue):
 
             if msg != 'WATCHDOG':
 
-                last_comm = time.time()
-                watchdog_queue.put(last_comm)
+                if last_ds_time == -1 or abs((time.time() - last_comm + last_ds_time) - msg['ds_time']) < 1:
+
+                    last_comm = time.time()
+                    last_ds_time = msg['ds_time']
+
+                else:
+                    msg = {}
+                    print('Command tossed due to lag', abs((time.time() - last_comm + last_ds_time) - msg['ds_time']) )
+
+                #watchdog_queue.put(last_comm)
 
             else:
                 last_comm = -1
@@ -204,10 +216,16 @@ def processor(send, recv, led_queue, watchdog_queue):
                 # Elevator
                 if commcheck(msg, 'U'):
                     motor_controller.elevator_up()
+
+                    new_elevator_direction = 1
                 elif commcheck(msg, 'J'):
                     motor_controller.elevator_down()
+
+                    new_elevator_direction = -1
                 else:
                     motor_controller.elevator_stop()
+
+                    new_elevator_direction = 0
 
                 # Intake
                 if commcheck(msg, 'K'): #succ
@@ -227,11 +245,31 @@ def processor(send, recv, led_queue, watchdog_queue):
                 else:
                     motor_controller.continuous_stop(motor_controller.BACK_CLIMB)
 
+                if commcheck(msg, 'PD'):
+                    motor_controller.go_to_angle(motor_controller.DOUBLE_CLIMB, 180)
+                elif commcheck(msg, 'PU'):
+                    motor_controller.go_to_angle(motor_controller.DOUBLE_CLIMB, 0)
+
+                if elevator_direction != new_elevator_direction:
+                    elevator_direction = new_elevator_direction
+
+                    if elevator_direction == 1:
+                        print('led up')
+                        led_queue.put('chase_up')
+                    elif elevator_direction == -1:
+                        print('led down')
+                        led_queue.put('chase_down')
+                    else:
+                        print('reset position')
+                        led_queue.put('rainbow')
+
+
             except:
                 print('Error occured')
                 led_queue.put('error')
 
                 traceback.print_exc()
+
 
 
         else:
@@ -272,6 +310,6 @@ if __name__ == '__main__':
     recv_procress.start()
     command_processor.start()
     led_process.start()
-    watchdog_processor.start()
+    #watchdog_processor.start()
 
     print('Server running on', addr)

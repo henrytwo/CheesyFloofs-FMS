@@ -17,6 +17,8 @@ ORDER = neopixel.GRB
 pixels = neopixel.NeoPixel(pixel_pin, num_pixels * 2, brightness=1, auto_write=False,
                            pixel_order=ORDER)
 
+rainbow_count = 0
+
 # Makes both sides the same
 def dual(index, value):
 
@@ -46,34 +48,57 @@ def wheel(pos):
     return (r, g, b) if ORDER == neopixel.RGB or ORDER == neopixel.GRB else (r, g, b, 0)
 
 
-def rainbow_cycle(wait=0.001):
-    for j in range(255):
-        for i in range(num_pixels):
-            pixel_index = (i * 256 // num_pixels) + j
-            #pixels[i] = wheel(pixel_index & 255)
-            dual(i, wheel(pixel_index & 255))
-        pixels.show()
-        time.sleep(wait)
+def rainbow_cycle(wait=0.00001):
 
-def chase(color=(0, 0, 255), direction=1):
+    global rainbow_count
+
+    for i in range(num_pixels):
+        pixel_index = (i * 256 // num_pixels) + rainbow_count
+        #pixels[i] = wheel(pixel_index & 255)
+        dual(i, wheel(pixel_index & 255))
+    pixels.show()
+
+    rainbow_count += 1
+    rainbow_count %= 255
+    #time.sleep(wait)
+
+def chase(color, direction):
+
+    pixels.fill((0, 0, 0))
+
+
     if direction > 0:
-        dual(int(time.time()) % num_pixels, color)
+        index = int(time.time() * 20) % num_pixels
+
     else:
-        dual(num_pixels - int(time.time()) % num_pixels, color)
+        index = num_pixels - int(time.time() * 20) % num_pixels
+
+    for i in range(5):
+
+        if -1 < (i + index) % num_pixels < num_pixels:
+
+            dual((i + index) % num_pixels, color)
+
+def chase_up():
+    chase((0, 0, 255), 1)
+
+def chase_down():
+    chase((0, 0, 255), -1)
 
 def fade():
     pixels.fill((0, 0, int(128 * math.sin(time.time() * 3) + 128)))
 
 def watchdog():
-    pixels.fill((255 if int(time.time()) % 2 == 0 else 0, 0, 0))
+    pixels.fill((255 if int(time.time() * 2) % 2 == 0 else 0, 0, 0))
 
 def error():
-    pixels.fill((255, 255, 0) if int(time.time()) % 2 == 0 else (0, 0, 0))
+    pixels.fill((255, 255, 0) if int(time.time() * 2) % 2 == 0 else (0, 0, 0))
 
 command_list = {'fade': fade,
                 'watchdog': watchdog,
                 'rainbow': rainbow_cycle,
-                'chase': chase,
+                'chase_up': chase_up,
+                'chase_down': chase_down,
                 'error': error}
 
 def cycle(command):

@@ -85,7 +85,7 @@ def elevator_stop():
     elevator_enable_io.on()
 
 def left_control(speed):
-    pca.channels[LEFT].duty_cycle = int((abs(speed) / 255) * 65535)
+    #pca.channels[LEFT].duty_cycle = int((abs(speed) / 255) * 65535)
 
     #print('LEFT', speed, int((abs(speed) / 255) * 65535))
 
@@ -102,11 +102,11 @@ def left_control(speed):
         left_fwd_io.off()
         left_rev_io.off()
 
-        pca.channels[LEFT].duty_cycle = 0
+        #pca.channels[LEFT].duty_cycle = 0
 
         
 def right_control(speed):
-    pca.channels[RIGHT].duty_cycle = int((abs(speed) / 255) * 65535)
+    #pca.channels[RIGHT].duty_cycle = int((abs(speed) / 255) * 65535)
 
 
     #print('RIGHT', speed, int((abs(speed) / 255) * 65535))
@@ -124,4 +124,4 @@ def right_control(speed):
         right_fwd_io.off()
         right_rev_io.off()
 
-        pca.channels[RIGHT].duty_cycle = 0
+        #pca.channels[RIGHT].duty_cycle = 0

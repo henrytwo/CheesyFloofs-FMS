@@ -165,7 +165,7 @@ if __name__ == '__main__':
         keys['SPC'] = key.get_pressed()[32]
         keys['enabled'] = enabled
         keys['mode'] = mode
-        keys['match_time'] = t.time()
+        keys['ds_time'] = t.time()
 
         commands = pickle.dumps(keys)
 
