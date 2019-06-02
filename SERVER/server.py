@@ -93,8 +93,7 @@ def watchdog(watchqueue, recv):
         if time.time() - last_time > 1 and last_time != -1:
             recv.put(('WATCHDOG', -1))
 
-
-        time.sleep(1)
+        time.sleep(0.5)
 
 def processor(send, recv, led_queue, watchdog_queue):
 
@@ -108,6 +107,8 @@ def processor(send, recv, led_queue, watchdog_queue):
 
     elevator_direction = 0
     new_elevator_direction = 0
+
+    last_update = -1
 
     while True:
 
@@ -123,9 +124,11 @@ def processor(send, recv, led_queue, watchdog_queue):
 
                 else:
                     msg = {}
-                    print('Command tossed due to lag', abs((time.time() - last_comm + last_ds_time) - msg['ds_time']) )
+                    print('Command tossed due to lag', abs((time.time() - last_comm + last_ds_time) - msg['ds_time']))
 
-                watchdog_queue.put(last_comm)
+                if time.time() - last_update > 0.5:
+                    last_update = time.time()
+                    watchdog_queue.put(last_comm)
 
             elif enabled:
                 enabled = False
