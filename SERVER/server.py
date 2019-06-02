@@ -90,11 +90,11 @@ def watchdog(watchqueue, recv):
         except:
             pass
 
-        if time.time() - last_time > 0.5:
+        if time.time() - last_time > 1 and last_time != -1:
             recv.put(('WATCHDOG', -1))
 
 
-        pass
+        time.sleep(1)
 
 def processor(send, recv, led_queue, watchdog_queue):
 
@@ -125,20 +125,17 @@ def processor(send, recv, led_queue, watchdog_queue):
                     msg = {}
                     print('Command tossed due to lag', abs((time.time() - last_comm + last_ds_time) - msg['ds_time']) )
 
-                #watchdog_queue.put(last_comm)
+                watchdog_queue.put(last_comm)
 
-            else:
-                last_comm = -1
+            elif enabled:
+                enabled = False
+                print('WATCHDOG STOPPED')
+
+                led_queue.put('watchdog')
+
 
         except:
             msg = {}
-
-        if time.time() - last_comm > 0.5 and enabled:
-            enabled = False
-            print('WATCHDOG STOPPED')
-
-
-            led_queue.put('watchdog')
 
         # do stuff
 
@@ -310,6 +307,6 @@ if __name__ == '__main__':
     recv_procress.start()
     command_processor.start()
     led_process.start()
-    #watchdog_processor.start()
+    watchdog_processor.start()
 
     print('Server running on', addr)
