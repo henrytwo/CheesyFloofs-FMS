@@ -39,6 +39,7 @@ import traceback
 
 PWM_OE = 10
 
+# Checks if code is running on pi
 try:
     from gpiozero import LED
 
@@ -65,6 +66,7 @@ def send_messages(send_queue, sock):
         except:
             pass
 
+# LED processing process
 def led_processor(q):
     current_command = 'fade'
 
@@ -77,9 +79,11 @@ def led_processor(q):
 
         led_controller.cycle(current_command)
 
+# Checks if a driverstation command is active
 def commcheck(base, index):
     return index in base and base[index]
 
+# Safety feature to ensure DS is in constant communication
 def watchdog(watchqueue, recv):
     last_time = -1
 
@@ -90,11 +94,13 @@ def watchdog(watchqueue, recv):
         except:
             pass
 
+        # If Latency > 1s, kill robot
         if time.time() - last_time > 1 and last_time != -1:
             recv.put(('WATCHDOG', -1))
 
         time.sleep(0.5)
 
+# Primary command processor
 def processor(send, recv, led_queue, watchdog_queue):
 
     enabled = False
@@ -113,24 +119,28 @@ def processor(send, recv, led_queue, watchdog_queue):
     while True:
 
         try:
+            # Get latest command
             msg, addr = recv.get()
 
+            # Check if command is issued by watchdog
             if msg != 'WATCHDOG':
 
+                # Ensure command was issued within the last second
                 if last_ds_time == -1 or abs((time.time() - last_comm + last_ds_time) - msg['ds_time']) < 1:
 
                     last_comm = time.time()
                     last_ds_time = msg['ds_time']
 
-                else:
+                else: # Too much lag, command ignored
                     msg = {}
                     print('Command tossed due to lag', abs((time.time() - last_comm + last_ds_time) - msg['ds_time']))
 
+                # If latency is with 0.5s, tell watchdog everything is good
                 if time.time() - last_update > 0.5:
                     last_update = time.time()
                     watchdog_queue.put(last_comm)
 
-            elif enabled:
+            elif enabled: # Stop command issued by watchdog
                 enabled = False
                 print('WATCHDOG STOPPED')
 
@@ -140,8 +150,7 @@ def processor(send, recv, led_queue, watchdog_queue):
         except:
             msg = {}
 
-        # do stuff
-
+        # Enable and disable robot
         if commcheck(msg, 'enabled') and not enabled:
 
             print('Robot enabled!')
@@ -159,7 +168,7 @@ def processor(send, recv, led_queue, watchdog_queue):
             print('Robot disabled by DS')
 
         if enabled:
-            pwm_oe.off()
+            pwm_oe.off() # Enable motor power
 
             # Controls needed
             # WASD - Drive, duh
@@ -176,7 +185,7 @@ def processor(send, recv, led_queue, watchdog_queue):
 
             try:
 
-
+                # Drive train keyboard
                 if commcheck(msg, 'W'):
                     left_power += 255
                     right_power += 255
@@ -196,13 +205,6 @@ def processor(send, recv, led_queue, watchdog_queue):
                     right_power -= 255
 
                     turning = True
-
-                if commcheck(msg, 'R'):
-                    motor_controller.continuous_ccw(motor_controller.INTAKE)
-                elif commcheck(msg, 'F'):
-                    motor_controller.continuous_cw(motor_controller.INTAKE)
-                else:
-                    motor_controller.continuous_stop(motor_controller.INTAKE)
 
                 if turning:
                     if left_power > 255:
@@ -245,11 +247,13 @@ def processor(send, recv, led_queue, watchdog_queue):
                 else:
                     motor_controller.continuous_stop(motor_controller.BACK_CLIMB)
 
-                if commcheck(msg, 'PD'):
+                # Double climb bar
+                if commcheck(msg, 'PD'): # Deploy
                     motor_controller.go_to_angle(motor_controller.DOUBLE_CLIMB, 180)
-                elif commcheck(msg, 'PU'):
+                elif commcheck(msg, 'PU'): # Reset
                     motor_controller.go_to_angle(motor_controller.DOUBLE_CLIMB, 0)
 
+                # Makes led strips chase based on elevator direction
                 if elevator_direction != new_elevator_direction:
                     elevator_direction = new_elevator_direction
 
@@ -270,14 +274,14 @@ def processor(send, recv, led_queue, watchdog_queue):
 
                 traceback.print_exc()
 
-
-
         else:
+            # Kills elevator and servo control
             pwm_oe.on()
             motor_controller.elevator_enable_io.on()
 
         #print(enabled, msg)
 
+        # Reminds drive station that robot is indeed alive
         if msg:
             send.put(({'heartbeat':'I am alive!', 'elevator': 0}, addr))
 
@@ -294,11 +298,13 @@ if __name__ == '__main__':
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(addr)
 
+    # Multiprocessing queues
     send_queue = multiprocessing.Queue()
     recv_queue = multiprocessing.Queue()
     led_queue = multiprocessing.Queue()
     watchdog_queue = multiprocessing.Queue()
 
+    # Setup processes
     send_procress = multiprocessing.Process(target=send_messages, args=(send_queue, sock))
     recv_procress = multiprocessing.Process(target=recv_messages, args=(recv_queue, sock))
     command_processor = multiprocessing.Process(target=processor, args=(send_queue, recv_queue, led_queue, watchdog_queue))
@@ -306,6 +312,7 @@ if __name__ == '__main__':
 
     led_process = multiprocessing.Process(target=led_processor, args=(led_queue,))
 
+    # Start processes
     send_procress.start()
     recv_procress.start()
     command_processor.start()

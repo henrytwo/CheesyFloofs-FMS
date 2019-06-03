@@ -57,38 +57,47 @@ elevator_down_io.on()
 # Big boi servo
 kit.servo[2].set_pulse_width_range(1500, 2500)
 
+# Run servo ccw
 def continuous_ccw(channel):
     pca.channels[channel].duty_cycle = 2553
 
+# Run servo cw
 def continuous_cw(channel):
     pca.channels[channel].duty_cycle = 50
 
+# Stop servo
 def continuous_stop(channel):
     pca.channels[channel].duty_cycle = 0
 
+# non continuous servo position
 def go_to_angle(channel, angle):
     kit.servo[channel].angle = angle
 
+# Elevator Up
 def elevator_up():
     elevator_down_io.off()
     elevator_enable_io.off()
 
     print('UP')
 
+# Elevator down
 def elevator_down():
     elevator_down_io.on()
     elevator_enable_io.off()
 
     print('DOWN')
 
+# Stop elevator
 def elevator_stop():
     elevator_enable_io.on()
 
+# Control left drivetrain
 def left_control(speed):
     #pca.channels[LEFT].duty_cycle = int((abs(speed) / 255) * 65535)
 
     #print('LEFT', speed, int((abs(speed) / 255) * 65535))
 
+    # Toggles left and right enable
     if speed > 0:
         left_fwd_io.on()
         left_rev_io.off()
@@ -104,7 +113,7 @@ def left_control(speed):
 
         #pca.channels[LEFT].duty_cycle = 0
 
-        
+# Control right drive train
 def right_control(speed):
     #pca.channels[RIGHT].duty_cycle = int((abs(speed) / 255) * 65535)
 

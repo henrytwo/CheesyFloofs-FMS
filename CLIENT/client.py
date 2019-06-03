@@ -10,6 +10,7 @@ def text(x, y, msg):
     Text = font.render(msg, True, (255, 255, 255))
     screen.blit(Text, (x, y))
 
+# Draw robot diagram
 def Robot(x, y, robotState):
 
     # top pole
@@ -34,13 +35,14 @@ def Robot(x, y, robotState):
 
     draw.rect(screen, (0, 0, 255), (x - 120, y - 20, 240, 20))
 
+# Send command to robot
 def send_command(command_queue, sock, address):
 
     while True:
         data_out = command_queue.get()
         sock.sendto(data_out, address)
 
-
+# Get data from robot
 def get_data(recv_queue, sock):
 
     while True:
@@ -81,9 +83,11 @@ if __name__ == '__main__':
     running = True
     pos = [0, 0]
 
+    # Multiprocessing queue
     command_queue = multiprocessing.Queue()
     recv_queue = multiprocessing.Queue()
 
+    # Setup processes
     send_process = multiprocessing.Process(target=send_command, args=(command_queue, sock, address))
     recv_process = multiprocessing.Process(target=get_data, args=(recv_queue, sock))
 
@@ -106,6 +110,7 @@ if __name__ == '__main__':
                 recv_process.terminate()
 
             if e.type == KEYDOWN:
+                # Enable robot in certain mode
                 if e.key in KEY_MODE:
 
                     if not enabled:
@@ -121,6 +126,7 @@ if __name__ == '__main__':
                         mode = 'disabled'
                         print('Disabled')
 
+                # Disable robot
                 elif e.key == K_ESCAPE:
                     enabled = False
                     mode = 'disabled'
@@ -132,6 +138,7 @@ if __name__ == '__main__':
         # D - 100
         # SPC - 32
 
+        # Update match time
         match_time = t.time() - start_time
 
         # Controls needed
@@ -141,15 +148,21 @@ if __name__ == '__main__':
         # OL - Back Climb
         # PU PD - Double Climb release
 
+        # Keyboard control
+
+        # Elevator
         keys['U'] = key.get_pressed()[117]
         keys['J'] = key.get_pressed()[106]
 
+        # Intake
         keys['I'] = key.get_pressed()[105]
         keys['K'] = key.get_pressed()[107]
 
+        # Back climb
         keys['O'] = key.get_pressed()[111]
         keys['L'] = key.get_pressed()[108]
 
+        # Double climb bar
         keys['PU'] = key.get_pressed()[280]
         keys['PD'] = key.get_pressed()[281]
 
@@ -169,10 +182,12 @@ if __name__ == '__main__':
 
         commands = pickle.dumps(keys)
 
-        for k in keys:
-            if keys[k] == 1:
-                break
+        # I don't know what this was supposed to do
+        #for k in keys:
+        #    if keys[k] == 1:
+        #        break
 
+        # Queue up keys to be sent to robot
         command_queue.put(commands)
 
         try:
@@ -189,13 +204,12 @@ if __name__ == '__main__':
         if 'heartbeat' in robotState:
             last_communication = t.time()
 
+        # If there's too much latency, kill robot
         if t.time() - last_communication > 0.5 and match_time > 2 and enabled:
             enabled = False
             mode = 'timeout disabled'
 
             print('Disabled due to communication timeout')
-
-
 
         # screen
         screen.fill((0, 0, 0))
