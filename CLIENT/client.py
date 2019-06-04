@@ -166,7 +166,7 @@ if __name__ == '__main__':
         keys['PU'] = key.get_pressed()[280]
         keys['PD'] = key.get_pressed()[281]
 
-        # Future
+        # Recording for auto
         keys['R'] = key.get_pressed()[114]
         keys['F'] = key.get_pressed()[102]
 
@@ -231,7 +231,8 @@ if __name__ == '__main__':
                  "Network: %s" % str(address),
                  "Match Time: %f" % (match_time if enabled else 0.0),
                  "Last communication: %fs ago" % (t.time() - last_communication),
-                 "Connection Status: %s" % ('Connected' if (t.time() - last_communication) < 1 else 'Disconnected')]
+                 "Connection Status: %s" % ('Connected' if (t.time() - last_communication) < 1 else 'Disconnected'),
+                 "Recording: %s" % ('True' if 'recording' in robotState and robotState['recording'] else 'False')]
 
         for i in range(len(texts)):
             text(20, 30 + i * 30, texts[i])
