@@ -305,6 +305,11 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
 
         if commcheck(msg, 'ESTOP'):
 
+            pwm_oe.on()
+            motor_controller.elevator_enable_io.on()
+
+            auto_interrupt_queue.put('STOP')
+
             led_queue.put('watchdog')
             print('ESTOP kill everything!')
 
