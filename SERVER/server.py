@@ -7,6 +7,8 @@ import led_controller
 import motor_controller
 import traceback
 import uuid
+from gpiozero import DistanceSensor
+import os
 
 # Main Pi
 
@@ -14,15 +16,15 @@ import uuid
 # 3 - PWM
 # 4 - Elevator ENable
 # 17 - Elevator down
-# 27 - Left FWD Enable
-# 22 - Left BW Enable
+# 27 - ~~Left FWD Enable
+# 22 - ~~Left BW Enable
 # 10 - PWM OE
-# 9 - Right FWD Enable
-# 11 - Right BW Enable
-# 5
-# 6
-# 13
-# 19
+# 9 - Left FWD Enable
+# 11 - Left BW Enable
+# 5 - ULTRA ECHO
+# 6 - ULTRA TRIG
+# 13 - Left FWD Enable
+# 19 - Right BW Enable
 # 26
 
 # 14
@@ -38,6 +40,9 @@ import uuid
 # 20
 # 21
 
+print('ultra wait')
+ultrasonic = DistanceSensor(echo=5, trigger=6)
+print('ultra done')
 
 RECORD_INTERVAL = 0.1
 PWM_OE = 10
@@ -117,6 +122,9 @@ def update_robot(msg):
 
     turning = False
 
+    elevator_direction = 0
+    new_elevator_direction = 0
+
     try:
 
         # Drive train keyboard
@@ -129,14 +137,14 @@ def update_robot(msg):
             right_power -= 255
 
         if commcheck(msg, 'A'):
-            left_power -= 255
-            right_power += 255
+            left_power += 255
+            right_power -= 255
 
             turning = True
 
         if commcheck(msg, 'D'):
-            left_power += 255
-            right_power -= 255
+            left_power -= 255
+            right_power += 255
 
             turning = True
 
@@ -208,22 +216,37 @@ def update_robot(msg):
 
         traceback.print_exc()
 
-def autonomous(auto_instruction_queue, auto_interrupt_queue):
+def autonomous(auto_instruction_queue, auto_interrupt_queue, send_queue):
     while True:
-        instruction = auto_instruction_queue.get()
+        #print('Waiting for auto instructions')
 
-        for i in instruction:
-            update_robot(i)
+        try:
+            instruction = auto_instruction_queue.get_nowait()
 
-            time.sleep(RECORD_INTERVAL)
+            print('Auto instruction received')
 
+            for i in instruction:
+                #print('Auto instruction:', i)
+
+                update_robot(i)
+
+                time.sleep(RECORD_INTERVAL)
+
+                try:
+                    interrupt_packet = auto_interrupt_queue.get_nowait()
+
+                    if interrupt_packet:
+                        print('Auto interrupte')
+                        break
+                except:
+                    pass
+
+        except:
             try:
-                interrupt_packet = auto_interrupt_queue.get_nowait()
-
-                if interrupt_packet:
-                    break
+                auto_interrupt_queue.get_nowait()
             except:
                 pass
+
 
 # Primary command processor
 def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, auto_interrupt_queue):
@@ -236,19 +259,19 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
     last_comm = -1
     last_ds_time = -1
 
-    elevator_direction = 0
-    new_elevator_direction = 0
-
     last_update = -1
 
     recording = False
     recording_stack = []
     previous_frame = -1
 
+    auto_kill_sent = False
+    auto_instruction_sent = False
 
     while True:
 
         try:
+            #print('ultra', ultrasonic.distance)
             # Get latest command
             msg, addr = recv.get()
 
@@ -280,6 +303,14 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
         except:
             msg = {}
 
+        if commcheck(msg, 'ESTOP'):
+
+            led_queue.put('watchdog')
+            print('ESTOP kill everything!')
+
+            os.system('sudo pkill python3;')
+            #raise SystemExit
+
         # Enable and disable robot
         if commcheck(msg, 'enabled') and not enabled:
 
@@ -300,10 +331,15 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
         if enabled:
             pwm_oe.off() # Enable motor power
 
+            auto_kill_sent = False
+
             if msg and msg['mode'] == 'teleop':
 
                 # Begin recording
                 if commcheck(msg, 'R'):
+
+                    recording_stack = []
+                    previous_frame = -1
                     recording = True
 
                 elif commcheck(msg, 'F'):
@@ -316,8 +352,6 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
 
                     print('Saved as ' + filename)
 
-
-
                 if recording:
 
                     if previous_frame == -1 or time.time() > previous_frame + RECORD_INTERVAL:
@@ -326,13 +360,16 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
 
                 update_robot(msg)
 
-            elif msg and msg['mode'] == 'auto':
+            elif msg and 'auto' in msg['mode']:
 
-                with open('test.auto', 'rb') as file:
-                    file = pickle.load(file)
+                if not auto_instruction_sent:
 
-                    auto_instruction_queue.put(file)
+                    with open(msg['mode'].split('//')[1], 'rb') as file:
+                        file = pickle.load(file)
 
+                        auto_instruction_queue.put(file)
+
+                    auto_instruction_sent = True
 
 
         else:
@@ -340,14 +377,21 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
             pwm_oe.on()
             motor_controller.elevator_enable_io.on()
 
-            auto_interrupt_queue.put('STOP')
+            auto_instruction_sent = False
 
-            # Flush queue to get rid of residual instructions that might otherwise do bad things
-            try:
-                while True:
-                    auto_instruction_queue.get_nowait()
-            except:
-                pass
+            if not auto_kill_sent:
+                auto_interrupt_queue.put('STOP')
+
+                print('Auto kill sent')
+
+                auto_kill_sent = True
+
+                # Flush queue to get rid of residual instructions that might otherwise do bad things
+                try:
+                    while True:
+                        auto_instruction_queue.get_nowait()
+                except:
+                    pass
 
         #print(enabled, msg)
 
@@ -382,11 +426,11 @@ if __name__ == '__main__':
     recv_procress = multiprocessing.Process(target=recv_messages, args=(recv_queue, sock))
     command_processor = multiprocessing.Process(target=processor, args=(send_queue, recv_queue, led_queue, watchdog_queue, auto_instruction_queue, auto_interrupt_queue))
     watchdog_processor = multiprocessing.Process(target=watchdog, args=(watchdog_queue, recv_queue))
-    auto_processor = multiprocessing.Process(target=autonomous, args=(auto_instruction_queue, auto_interrupt_queue))
+    auto_processor = multiprocessing.Process(target=autonomous, args=(auto_instruction_queue, auto_interrupt_queue, send_queue))
 
     led_process = multiprocessing.Process(target=led_processor, args=(led_queue,))
 
-    # Start processes
+    # Start processes1
     send_procress.start()
     recv_procress.start()
     command_processor.start()

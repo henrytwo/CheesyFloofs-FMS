@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     ELEVATOR_MAX_VALUE = 2195
 
-    KEY_MODE = {K_1 : 'teleop', K_2: 'auto'}
+    KEY_MODE = {K_1: 'teleop', K_2: 'auto//test.auto', K_3: 'auto//climb1.auto', K_4: 'auto//climb2.auto'}
 
     # text
     font = font.Font('avenir.otf', 20)
@@ -126,6 +126,11 @@ if __name__ == '__main__':
                         mode = 'disabled'
                         print('Disabled')
 
+                elif e.key == K_DELETE:
+                    enabled = False
+                    mode = 'emergency stop -> must reboot robot'
+                    print('Emergency stopped')
+
                 # Disable robot
                 elif e.key == K_ESCAPE:
                     enabled = False
@@ -176,6 +181,9 @@ if __name__ == '__main__':
         keys['S'] = key.get_pressed()[115]
         keys['D'] = key.get_pressed()[100]
         keys['SPC'] = key.get_pressed()[32]
+
+        keys['ESTOP'] = key.get_pressed()[K_DELETE]
+
         keys['enabled'] = enabled
         keys['mode'] = mode
         keys['ds_time'] = t.time()
