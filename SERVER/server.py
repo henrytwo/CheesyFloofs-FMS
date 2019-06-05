@@ -289,7 +289,7 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
                     print('Command tossed due to lag', abs((time.time() - last_comm + last_ds_time) - msg['ds_time']))
 
                 # If latency is with 0.5s, tell watchdog everything is good
-                if time.time() - last_update > 0.5:
+                if time.time() - last_update < 0.5:
                     last_update = time.time()
                     watchdog_queue.put(last_comm)
 
