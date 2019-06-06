@@ -10,6 +10,8 @@ import uuid
 from gpiozero import DistanceSensor
 import os
 
+from gpiozero import LED
+
 # Main Pi
 
 # 2 - PWM
@@ -25,7 +27,7 @@ import os
 # 6 - ULTRA TRIG
 # 13 - Left FWD Enable
 # 19 - Right BW Enable
-# 26
+# 26 -
 
 # 14
 # 15
@@ -36,7 +38,7 @@ import os
 # 8
 # 7
 # 12
-# 16
+# 16 -    Fan e nable
 # 20
 # 21
 
@@ -46,6 +48,7 @@ print('ultra done')
 
 RECORD_INTERVAL = 0.1
 PWM_OE = 10
+FAN = 16
 
 # Checks if code is running on pi
 try:
@@ -105,6 +108,7 @@ def watchdog(watchqueue, recv):
         # If Latency > 1s, kill robot
         if time.time() - last_time > 1 and last_time != -1:
             recv.put(('WATCHDOG', -1))
+            print('kill robot')
 
         time.sleep(0.5)
 
@@ -256,6 +260,9 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
     pwm_oe = LED(PWM_OE)
     pwm_oe.on()
 
+    fan_io = LED(FAN)
+    fan_io.on()
+
     last_comm = -1
     last_ds_time = -1
 
@@ -271,9 +278,11 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
     while True:
 
         try:
-            #print('ultra', ultrasonic.distance)
+
             # Get latest command
             msg, addr = recv.get()
+
+            #print('ultra', ultrasonic.distance)
 
             # Check if command is issued by watchdog
             if msg != 'WATCHDOG':
@@ -288,8 +297,8 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
                     msg = {}
                     print('Command tossed due to lag', abs((time.time() - last_comm + last_ds_time) - msg['ds_time']))
 
-                # If latency is with 0.5s, tell watchdog everything is good
-                if time.time() - last_update < 0.5:
+                # Don't bombard the watchdog
+                if time.time() - last_update > 1:
                     last_update = time.time()
                     watchdog_queue.put(last_comm)
 
@@ -321,6 +330,8 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
 
             print('Robot enabled!')
 
+
+
             led_queue.put('rainbow')
 
             enabled = True
@@ -332,6 +343,12 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
             enabled = False
 
             print('Robot disabled by DS')
+
+        if commcheck(msg, 'FAN'):
+            fan_io.off()
+        else:
+            fan_io.on()
+
 
         if enabled:
             pwm_oe.off() # Enable motor power
@@ -402,7 +419,7 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
 
         # Reminds drive station that robot is indeed alive
         if msg:
-            send.put(({'heartbeat':'I am alive!', 'elevator': 0, 'recording': recording}, addr))
+            send.put(({'heartbeat':'I am alive!', 'elevator': 0, 'recording': recording, 'ultrasonic': -1}, addr))
 
 #L9u3EhzpU
 

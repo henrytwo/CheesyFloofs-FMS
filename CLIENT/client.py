@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     ELEVATOR_MAX_VALUE = 2195
 
-    KEY_MODE = {K_1: 'teleop', K_2: 'auto//test.auto', K_3: 'auto//climb1.auto', K_4: 'auto//climb2.auto'}
+    KEY_MODE = {K_1: 'teleop', K_2: 'auto//test.auto', K_3: 'auto//level1.auto', K_4: 'auto//level2.auto'}
 
     # text
     font = font.Font('avenir.otf', 20)
@@ -100,6 +100,8 @@ if __name__ == '__main__':
     mode = 'disabled'
     start_time = 0
 
+    fan_enabled = True
+
     last_communication = float('inf')
 
     while running:
@@ -137,6 +139,9 @@ if __name__ == '__main__':
                     mode = 'disabled'
                     print('Disabled')
 
+                elif e.key == K_HOME:
+                    fan_enabled = not fan_enabled
+
         # W - 119
         # A - 97
         # S - 115
@@ -154,6 +159,8 @@ if __name__ == '__main__':
         # PU PD - Double Climb release
 
         # Keyboard control
+
+        keys['FAN'] = fan_enabled
 
         # Elevator
         keys['U'] = key.get_pressed()[117]
@@ -240,7 +247,9 @@ if __name__ == '__main__':
                  "Match Time: %f" % (match_time if enabled else 0.0),
                  "Last communication: %fs ago" % (t.time() - last_communication),
                  "Connection Status: %s" % ('Connected' if (t.time() - last_communication) < 1 else 'Disconnected'),
-                 "Recording: %s" % ('True' if 'recording' in robotState and robotState['recording'] else 'False')]
+                 "Recording: %s" % ('True' if 'recording' in robotState and robotState['recording'] else 'False'),
+                 "Fan: %s" % ('True' if fan_enabled else 'False'),
+                 "Ultrasonic: %s" % (str(robotState['recording']) if 'recording' in robotState and robotState['recording'] else 'N/A')]
 
         for i in range(len(texts)):
             text(20, 30 + i * 30, texts[i])
