@@ -111,6 +111,10 @@ if __name__ == '__main__':
                 send_process.terminate()
                 recv_process.terminate()
 
+                print('Terminating')
+
+                raise SystemExit
+
             if e.type == KEYDOWN:
                 # Enable robot in certain mode
                 if e.key in KEY_MODE:
@@ -249,7 +253,7 @@ if __name__ == '__main__':
                  "Connection Status: %s" % ('Connected' if (t.time() - last_communication) < 1 else 'Disconnected'),
                  "Recording: %s" % ('True' if 'recording' in robotState and robotState['recording'] else 'False'),
                  "Fan: %s" % ('True' if fan_enabled else 'False'),
-                 "Ultrasonic: %s" % (str(robotState['recording']) if 'recording' in robotState and robotState['recording'] else 'N/A')]
+                 "Ultrasonic: %s" % (str(robotState['ultrasonic']) if 'ultrasonic' in robotState else 'N/A')]
 
         for i in range(len(texts)):
             text(20, 30 + i * 30, texts[i])

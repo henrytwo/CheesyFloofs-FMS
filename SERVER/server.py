@@ -21,15 +21,15 @@ from gpiozero import LED
 # 27 - ~~Left FWD Enable
 # 22 - ~~Left BW Enable
 # 10 - PWM OE
-# 9 - Left FWD Enable
+# 9 - ~Left FWD Enable
 # 11 - Left BW Enable
 # 5 - ULTRA ECHO
 # 6 - ULTRA TRIG
 # 13 - Left FWD Enable
 # 19 - Right BW Enable
-# 26 -
+# 26 - Drive Enabled
 
-# 14
+# 14 - Left FWD Enable
 # 15
 # 18 - LED
 # 23
@@ -38,17 +38,14 @@ from gpiozero import LED
 # 8
 # 7
 # 12
-# 16 -    Fan e nable
-# 20
+# 16 - Fan enable
+# 20 - Drive enable
 # 21
-
-print('ultra wait')
-ultrasonic = DistanceSensor(echo=5, trigger=6)
-print('ultra done')
 
 RECORD_INTERVAL = 0.1
 PWM_OE = 10
 FAN = 16
+DRIVE_ENABLE = 26
 
 # Checks if code is running on pi
 try:
@@ -257,11 +254,13 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
 
     enabled = False
 
+    ultrasonic = DistanceSensor(echo=5, trigger=6)
+
+    drive_enable_oe = LED(DRIVE_ENABLE)
+    drive_enable_oe.on()
+
     pwm_oe = LED(PWM_OE)
     pwm_oe.on()
-
-    fan_io = LED(FAN)
-    fan_io.on()
 
     last_comm = -1
     last_ds_time = -1
@@ -316,6 +315,7 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
 
             pwm_oe.on()
             motor_controller.elevator_enable_io.on()
+            drive_enable_oe.on()
 
             auto_interrupt_queue.put('STOP')
 
@@ -344,14 +344,9 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
 
             print('Robot disabled by DS')
 
-        if commcheck(msg, 'FAN'):
-            fan_io.off()
-        else:
-            fan_io.on()
-
-
         if enabled:
             pwm_oe.off() # Enable motor power
+            drive_enable_oe.off()
 
             auto_kill_sent = False
 
@@ -398,6 +393,7 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
             # Kills elevator and servo control
             pwm_oe.on()
             motor_controller.elevator_enable_io.on()
+            drive_enable_oe.on()
 
             auto_instruction_sent = False
 
@@ -419,7 +415,7 @@ def processor(send, recv, led_queue, watchdog_queue, auto_instruction_queue, aut
 
         # Reminds drive station that robot is indeed alive
         if msg:
-            send.put(({'heartbeat':'I am alive!', 'elevator': 0, 'recording': recording, 'ultrasonic': -1}, addr))
+            send.put(({'heartbeat':'I am alive!', 'elevator': 0, 'recording': recording, 'ultrasonic': ultrasonic.distance}, addr))
 
 #L9u3EhzpU
 
